@@ -4,26 +4,29 @@ import fs from "fs";
 
 const modelFiles = fs
   .readdirSync(__dirname + "/../models/")
-  .filter((file) => file.endsWith(".js"));
+  .filter((file) => file.endsWith(".js") && file !== "index.js");
 
 const sequelizeService = {
   init: async () => {
     try {
-      let connection = new Sequelize(databaseConfig);
+      const connection = new Sequelize(databaseConfig);
 
-      /*
-        Loading models automatically
-      */
-     
+      // Load all models
       for (const file of modelFiles) {
         const model = await import(`../models/${file}`);
         model.default.init(connection);
       }
 
-      modelFiles.map(async (file) => {
+      // Setup associations
+      for (const file of modelFiles) {
         const model = await import(`../models/${file}`);
-        model.default.associate && model.default.associate(connection.models);
-      });
+        if (model.default.associate) {
+          model.default.associate(connection.models);
+        }
+      }
+
+      // 🔥 Auto create tables from models
+      await connection.sync({ alter: true });
 
       console.log("[SEQUELIZE] Database service initialized");
     } catch (error) {

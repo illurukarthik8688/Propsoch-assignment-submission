@@ -1,44 +1,45 @@
-import Sequelize, { Model } from "sequelize";
-import bcrypt from "bcryptjs";
+import { Model, DataTypes } from "sequelize";
 
-class User extends Model {
+export default class User extends Model {
   static init(sequelize) {
-    super.init(
+    return super.init(
       {
-        name: Sequelize.STRING,
-        email: Sequelize.STRING,
-        password: Sequelize.VIRTUAL, //When it is VIRTUAL it does not exist in the database
-        password_hash: Sequelize.STRING,
+        id: {
+          type: DataTypes.INTEGER,
+          autoIncrement: true,
+          primaryKey: true,
+        },
+        email: {
+          type: DataTypes.STRING,
+          allowNull: false,
+          unique: true,
+        },
+        password: {
+          type: DataTypes.STRING,
+          allowNull: false,
+        },
+        default_currency: {
+          type: DataTypes.STRING,
+          allowNull: false,
+          defaultValue: "INR",
+        },
       },
       {
         sequelize,
-        timestamps: true, //If it's false do not add the attributes (updatedAt, createdAt).
-        //paranoid: true, //If it's true, it does not allow deleting from the bank, but inserts column deletedAt. Timestamps need be true.
-        //underscored: true, //If it's true, does not add camelcase for automatically generated attributes, so if we define updatedAt it will be created as updated_at.
-        //freezeTableName: false, //If it's false, it will use the table name in the plural. Ex: Users
-        //tableName: 'Users' //Define table name
+        modelName: "User",
+        tableName: "Users",
       }
     );
-
-    this.addHook("beforeSave", async (user) => {
-      if (user.password) {
-        user.password_hash = await bcrypt.hash(user.password, 8);
-      }
-    });
-
-    return this;
   }
 
   static associate(models) {
-    this.belongsToMany(models.Address, {
-      through: "UserAddress",
-      foreignKey: "userId",
+    this.hasMany(models.Expense, { foreignKey: "created_by", as: "createdExpenses" });
+
+    this.belongsToMany(models.Expense, {
+      through: models.ExpenseMember,
+      foreignKey: "user_id",
+      otherKey: "expense_id",
+      as: "expenses",
     });
   }
-
-  checkPassword(password) {
-    return bcrypt.compare(password, this.password_hash);
-  }
 }
-
-export default User;
